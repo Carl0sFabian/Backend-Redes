@@ -1,0 +1,33 @@
+FROM php:8.2-apache
+
+# Instalar dependencias del sistema y extensiones de PHP necesarias
+RUN apt-get update && apt-get install -y \
+    git \
+    unzip \
+    libzip-dev \
+    && docker-php-ext-install pdo pdo_mysql zip \
+    && a2enmod rewrite
+
+# Instalar Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Configurar directorio de trabajo
+WORKDIR /var/www/html
+
+# Copiar archivos de dependencias
+COPY composer.json composer.lock ./
+
+# Instalar dependencias con Composer
+RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
+
+# Copiar el resto del código del backend
+COPY . .
+
+# Terminar de configurar el autoloader de Composer
+RUN composer dump-autoload --optimize
+
+# Otorgar permisos correctos para Apache
+RUN chown -R www-data:www-data /var/www/html
+
+# Exponer el puerto 80
+EXPOSE 80
