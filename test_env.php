@@ -18,7 +18,13 @@ if ($result['secrets_dir_exists']) {
     }
 }
 
-$envFiles = ['/etc/secrets/.env', __DIR__ . '/.env'];
+$envFiles = [
+    '/etc/secrets/.env', 
+    __DIR__ . '/.env',
+    '/etc/secrets/ca.pem',
+    '/etc/secrets/client_secret.json',
+    '/etc/secrets/token.json'
+];
 foreach ($envFiles as $file) {
     $exists = file_exists($file);
     $status = [
@@ -29,7 +35,7 @@ foreach ($envFiles as $file) {
         'keys' => []
     ];
     
-    if ($exists && $status['readable']) {
+    if ($exists && $status['readable'] && strpos($file, '.env') !== false) {
         $lines = @file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
         if (is_array($lines)) {
             foreach ($lines as $line) {
