@@ -1,0 +1,7 @@
+{
+    "require": {
+        "google/apiclient": "^2.19",
+        "smalot/pdfparser": "^2.12",
+        "setasign/fpdf": "^1.9"
+    }
+}

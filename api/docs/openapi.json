@@ -1,0 +1,540 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Edubridge API",
+    "description": "Documentación interactiva de la API de Edubridge. Gestión de usuarios, cursos, matrículas, asistencias RFID, rendimiento escolar y traducción automática de materiales con almacenamiento en Google Drive.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8012",
+      "description": "Servidor de desarrollo local PHP (Puerto 8012)"
+    },
+    {
+      "url": "http://localhost/edubridge-backend",
+      "description": "Servidor local XAMPP/Apache (Puerto 80)"
+    },
+    {
+      "url": "http://localhost:8012/edubridge-backend",
+      "description": "Servidor local PHP desde carpeta padre"
+    }
+  ],
+  "tags": [
+    { "name": "Usuarios", "description": "Gestión de cuentas de estudiantes, docentes y administradores" },
+    { "name": "Cursos", "description": "Gestión de asignaturas y planes de estudio" },
+    { "name": "Inscripciones", "description": "Matrícula de alumnos en cursos académicos" },
+    { "name": "Materiales", "description": "Gestión de archivos didácticos con traducción automática y Google Drive" },
+    { "name": "Asistencias", "description": "Control de asistencias integradas con lector de tarjetas RFID" },
+    { "name": "Rendimiento", "description": "Calificaciones y reportes consolidados" }
+  ],
+  "paths": {
+    "/api/usuarios/get.php": {
+      "get": {
+        "tags": ["Usuarios"],
+        "summary": "Listar todos los usuarios",
+        "description": "Retorna todos los usuarios registrados en el sistema, excluyendo contraseñas.",
+        "responses": {
+          "200": {
+            "description": "Listado de usuarios obtenido con éxito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Usuario" }
+                }
+              }
+            }
+          },
+          "404": { "description": "No se encontraron usuarios." }
+        }
+      }
+    },
+    "/api/usuarios/getById.php": {
+      "get": {
+        "tags": ["Usuarios"],
+        "summary": "Obtener usuario por ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "description": "ID numérico del usuario en la base de datos",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Usuario encontrado.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Usuario" }
+              }
+            }
+          },
+          "404": { "description": "Usuario no encontrado." }
+        }
+      }
+    },
+    "/api/usuarios/post.php": {
+      "post": {
+        "tags": ["Usuarios"],
+        "summary": "Registrar nuevo usuario",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["codigo", "nombre_completo", "correo", "tipo", "password"],
+                "properties": {
+                  "codigo": { "type": "string", "example": "E9482710" },
+                  "nombre_completo": { "type": "string", "example": "Juan Pérez Silva" },
+                  "correo": { "type": "string", "format": "email", "example": "juan.perez@example.com" },
+                  "tipo": { "type": "string", "enum": ["Estudiante", "Docente", "Administrador"], "example": "Estudiante" },
+                  "password": { "type": "string", "format": "password", "example": "secreto123" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Usuario creado exitosamente." },
+          "400": { "description": "Datos incompletos." },
+          "503": { "description": "Error al guardar el usuario (posible código/correo duplicado)." }
+        }
+      }
+    },
+    "/api/usuarios/put.php": {
+      "post": {
+        "tags": ["Usuarios"],
+        "summary": "Actualizar datos básicos del usuario",
+        "description": "Nota: Se utiliza POST con fines de simplificación de peticiones en PHP.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["id", "codigo", "nombre_completo", "correo", "tipo"],
+                "properties": {
+                  "id": { "type": "integer", "example": 1 },
+                  "codigo": { "type": "string", "example": "E9482710" },
+                  "nombre_completo": { "type": "string", "example": "Juan Pérez Modificado" },
+                  "correo": { "type": "string", "format": "email", "example": "juan.mod@example.com" },
+                  "tipo": { "type": "string", "enum": ["Estudiante", "Docente", "Administrador"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Usuario actualizado exitosamente." },
+          "400": { "description": "Datos incompletos." },
+          "503": { "description": "Error al actualizar." }
+        }
+      }
+    },
+    "/api/usuarios/delete.php": {
+      "post": {
+        "tags": ["Usuarios"],
+        "summary": "Eliminar usuario",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["id"],
+                "properties": {
+                  "id": { "type": "integer", "example": 1 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Usuario eliminado exitosamente." },
+          "400": { "description": "Falta proporcionar el ID." },
+          "503": { "description": "Error al eliminar." }
+        }
+      }
+    },
+    "/api/cursos/get.php": {
+      "get": {
+        "tags": ["Cursos"],
+        "summary": "Listar todos los cursos",
+        "responses": {
+          "200": {
+            "description": "Listado de cursos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Curso" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cursos/getById.php": {
+      "get": {
+        "tags": ["Cursos"],
+        "summary": "Obtener curso por ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Curso" }
+              }
+            }
+          },
+          "404": { "description": "Curso no encontrado." }
+        }
+      }
+    },
+    "/api/cursos/post.php": {
+      "post": {
+        "tags": ["Cursos"],
+        "summary": "Crear un nuevo curso",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["nombre", "categoria", "id_docente"],
+                "properties": {
+                  "nombre": { "type": "string", "example": "Ciberseguridad Avanzada" },
+                  "categoria": { "type": "string", "example": "Tecnología de la Información" },
+                  "id_docente": { "type": "integer", "example": 2 },
+                  "descripcion": { "type": "string", "example": "Curso intensivo de hacking ético y criptografía." },
+                  "temas": { "type": "string", "example": "Firewalls, Kali Linux, OWASP Top 10" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Curso creado exitosamente." },
+          "400": { "description": "Datos incompletos." }
+        }
+      }
+    },
+    "/api/inscripciones/post.php": {
+      "post": {
+        "tags": ["Inscripciones"],
+        "summary": "Matricular a un estudiante en un curso",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["id_estudiante", "id_curso", "fecha_inicio", "fecha_fin"],
+                "properties": {
+                  "id_estudiante": { "type": "integer", "example": 3 },
+                  "id_curso": { "type": "integer", "example": 1 },
+                  "fecha_inicio": { "type": "string", "format": "date", "example": "2026-06-25" },
+                  "fecha_fin": { "type": "string", "format": "date", "example": "2026-12-15" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Inscripción completada exitosamente." }
+        }
+      }
+    },
+    "/api/materiales/get.php": {
+      "get": {
+        "tags": ["Materiales"],
+        "summary": "Listar todos los materiales",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Material" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/materiales/post.php": {
+      "post": {
+        "tags": ["Materiales"],
+        "summary": "Subir material con traducción automática opcional",
+        "description": "Sube un archivo a Google Drive y lo registra. Si el archivo es .pdf o .txt y está en inglés, el sistema genera de forma asíncrona un archivo traducido al español en Google Drive y lo registra como un material nuevo.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["id_curso", "titulo", "tipo", "archivo"],
+                "properties": {
+                  "id_curso": { "type": "integer", "example": 1 },
+                  "titulo": { "type": "string", "example": "Redes Capa 2 Slide" },
+                  "tipo": { "type": "string", "enum": ["Lectura", "PDF", "Práctica", "Otro"], "example": "PDF" },
+                  "archivo": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Archivo físico a subir (.txt o .pdf)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Material subido y registrado exitosamente en Google Drive y BD." },
+          "400": { "description": "Datos incompletos o archivo ausente." }
+        }
+      }
+    },
+    "/api/materiales/delete.php": {
+      "post": {
+        "tags": ["Materiales"],
+        "summary": "Eliminar material de estudio",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["id"],
+                "properties": {
+                  "id": { "type": "integer", "example": 5 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Material eliminado exitosamente de la base de datos." }
+        }
+      }
+    },
+    "/api/asistencias/get.php": {
+      "get": {
+        "tags": ["Asistencias"],
+        "summary": "Obtener todo el historial de asistencias RFID",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Asistencia" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/asistencias/getByUserId.php": {
+      "get": {
+        "tags": ["Asistencias"],
+        "summary": "Filtrar asistencias por ID de Estudiante",
+        "parameters": [
+          {
+            "name": "id_usuario",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Asistencia" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/asistencias/getBySede.php": {
+      "get": {
+        "tags": ["Asistencias"],
+        "summary": "Filtrar asistencias por Sede",
+        "parameters": [
+          {
+            "name": "sede",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "example": "Sede Norte"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Asistencia" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/asistencias/getByState.php": {
+      "get": {
+        "tags": ["Asistencias"],
+        "summary": "Filtrar asistencias por Estado",
+        "parameters": [
+          {
+            "name": "estado",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "example": "Presente"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Asistencia" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rendimiento/get.php": {
+      "get": {
+        "tags": ["Rendimiento"],
+        "summary": "Obtener consolidado escolar total",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Rendimiento" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rendimiento/post.php": {
+      "post": {
+        "tags": ["Rendimiento"],
+        "summary": "Registrar reporte de rendimiento",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["id_estudiante", "id_curso", "total_asistencias", "total_faltas", "nota_final"],
+                "properties": {
+                  "id_estudiante": { "type": "integer", "example": 3 },
+                  "id_curso": { "type": "integer", "example": 1 },
+                  "total_asistencias": { "type": "integer", "example": 14 },
+                  "total_faltas": { "type": "integer", "example": 2 },
+                  "nota_final": { "type": "number", "format": "float", "example": 16.5 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Reporte registrado exitosamente." }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Usuario": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "codigo": { "type": "string", "example": "E7482910" },
+          "nombre_completo": { "type": "string", "example": "Carlos Mendoza Quispe" },
+          "correo": { "type": "string", "example": "carlos@example.com" },
+          "tipo": { "type": "string", "example": "Estudiante" },
+          "fecha_creacion": { "type": "string", "example": "2026-06-25 04:19:32" }
+        }
+      },
+      "Curso": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "nombre": { "type": "string", "example": "Redes y Conectividad I" },
+          "categoria": { "type": "string", "example": "Ingeniería" },
+          "descripcion": { "type": "string", "example": "Conceptos básicos de telecomunicaciones." },
+          "temas": { "type": "string", "example": "Capa Física, Enlace de Datos" },
+          "id_docente": { "type": "integer", "example": 2 },
+          "docente_nombre": { "type": "string", "example": "Ing. Eduardo Silva" }
+        }
+      },
+      "Material": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "id_curso": { "type": "integer", "example": 1 },
+          "curso_nombre": { "type": "string", "example": "Redes y Conectividad I" },
+          "titulo": { "type": "string", "example": "Lectura 1 (Traducido al Español)" },
+          "tipo": { "type": "string", "example": "PDF" },
+          "url_archivo": { "type": "string", "example": "https://drive.google.com/open?id=1UG..." },
+          "fecha_publicacion": { "type": "string", "example": "2026-06-25" }
+        }
+      },
+      "Asistencia": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 12 },
+          "id_usuario": { "type": "integer", "example": 3 },
+          "usuario_nombre": { "type": "string", "example": "Carlos Mendoza Quispe" },
+          "fecha_hora": { "type": "string", "example": "2026-06-25 08:05:00" },
+          "sede": { "type": "string", "example": "Sede Norte" },
+          "dispositivo_rfid": { "type": "string", "example": "RFID-READER-01" },
+          "estado": { "type": "string", "example": "Presente" }
+        }
+      },
+      "Rendimiento": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "id_estudiante": { "type": "integer", "example": 3 },
+          "estudiante_nombre": { "type": "string", "example": "Carlos Mendoza Quispe" },
+          "id_curso": { "type": "integer", "example": 1 },
+          "curso_nombre": { "type": "string", "example": "Redes y Conectividad I" },
+          "total_asistencias": { "type": "integer", "example": 14 },
+          "total_faltas": { "type": "integer", "example": 2 },
+          "nota_final": { "type": "string", "example": "16.50" }
+        }
+      }
+    }
+  }
+}
