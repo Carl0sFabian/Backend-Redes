@@ -13,7 +13,7 @@ class GoogleDriveService {
         $this->client = new Google_Client();
         
         $clientSecretPath = __DIR__ . '/../config/client_secret.json';
-        if (file_exists('/etc/secrets/client_secret.json')) {
+        if (file_exists('/etc/secrets/client_secret.json') && is_readable('/etc/secrets/client_secret.json')) {
             $clientSecretPath = '/etc/secrets/client_secret.json';
         }
         $this->client->setAuthConfig($clientSecretPath);
@@ -21,7 +21,7 @@ class GoogleDriveService {
         $this->client->setAccessType('offline');
 
         $tokenPath = __DIR__ . '/../config/token.json';
-        if (file_exists('/etc/secrets/token.json')) {
+        if (file_exists('/etc/secrets/token.json') && is_readable('/etc/secrets/token.json')) {
             $tokenPath = '/etc/secrets/token.json';
         }
         

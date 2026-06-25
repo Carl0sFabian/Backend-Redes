@@ -47,7 +47,7 @@ class Database {
 
         try {
             $caPath = __DIR__ . '/ca.pem';
-            if (file_exists('/etc/secrets/ca.pem')) {
+            if (file_exists('/etc/secrets/ca.pem') && is_readable('/etc/secrets/ca.pem')) {
                 $caPath = '/etc/secrets/ca.pem';
             }
             $options = array(
