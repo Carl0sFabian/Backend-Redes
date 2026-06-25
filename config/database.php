@@ -12,6 +12,10 @@ class Database {
             $val = getenv($var);
             if ($val !== false) {
                 $env[$var] = $val;
+            } elseif (isset($_SERVER[$var])) {
+                $env[$var] = $_SERVER[$var];
+            } elseif (isset($_ENV[$var])) {
+                $env[$var] = $_ENV[$var];
             }
         }
 
