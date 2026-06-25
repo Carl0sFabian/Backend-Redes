@@ -101,5 +101,20 @@ try {
     $result['db_connection_test']['message'] = $e->getMessage();
 }
 
+// Test Translation Service
+$translateTest = [];
+try {
+    include_once __DIR__ . '/services/TranslationService.php';
+    $translationService = new TranslationService();
+    $testText = "Hello world. This is a translation test.";
+    $resultTranslate = $translationService->translateToSpanish($testText);
+    $translateTest['success'] = ($resultTranslate['translated_text'] !== null);
+    $translateTest['result'] = $resultTranslate;
+} catch (Exception $e) {
+    $translateTest['success'] = false;
+    $translateTest['error'] = $e->getMessage();
+}
+$result['translation_test'] = $translateTest;
+
 echo json_encode($result, JSON_PRETTY_PRINT);
 ?>
