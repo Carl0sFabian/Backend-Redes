@@ -33,5 +33,12 @@ RUN composer dump-autoload --optimize
 # Otorgar permisos correctos para Apache
 RUN chown -R www-data:www-data /var/www/html
 
+# Copiar y configurar el script de inicio
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
 # Exponer el puerto 80
 EXPOSE 80
+
+# Definir el script como punto de entrada
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
