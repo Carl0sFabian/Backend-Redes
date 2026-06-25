@@ -6,21 +6,33 @@ class Database {
         $this->conn = null;
 
         
-        $envPath = __DIR__ . '/../.env';
-        $etcSecretsEnv = '/etc/secrets/.env';
-        
-        if (file_exists($etcSecretsEnv)) {
-            $env = parse_ini_file($etcSecretsEnv);
-        } elseif (file_exists($envPath)) {
-            $env = parse_ini_file($envPath);
-        } else {
-            $env = [
-                'DB_HOST' => getenv('DB_HOST'),
-                'DB_PORT' => getenv('DB_PORT'),
-                'DB_NAME' => getenv('DB_NAME'),
-                'DB_USER' => getenv('DB_USER'),
-                'DB_PASS' => getenv('DB_PASS'),
-            ];
+        $env = [];
+        $vars = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASS'];
+        foreach ($vars as $var) {
+            $val = getenv($var);
+            if ($val !== false) {
+                $env[$var] = $val;
+            }
+        }
+
+        $envFiles = ['/etc/secrets/.env', __DIR__ . '/../.env'];
+        foreach ($envFiles as $file) {
+            if (file_exists($file)) {
+                $lines = @file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+                if (is_array($lines)) {
+                    foreach ($lines as $line) {
+                        if (strpos(trim($line), '#') === 0) continue;
+                        $parts = explode('=', $line, 2);
+                        if (count($parts) === 2) {
+                            $key = trim($parts[0]);
+                            $value = trim($parts[1]);
+                            $value = trim($value, '"\'');
+                            $env[$key] = $value;
+                        }
+                    }
+                }
+                break;
+            }
         }
         
         $host = $env['DB_HOST'] ?? '';
