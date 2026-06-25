@@ -68,39 +68,39 @@ class TranslationService {
 
     
     private function callTranslateApi($text) {
-        $url = "https://translate.googleapis.com/translate_a/single?client=gtx&dt=t&sl=auto&tl=es&q=" . urlencode($text);
+        $url = "https://api.mymemory.translated.net/get?q=" . urlencode($text) . "&langpair=auto|es";
 
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
         
         curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3');
         
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
         
         if ($httpCode !== 200 || !$response) {
-            error_log("Error al consultar API de traducción. HTTP Code: " . $httpCode);
+            error_log("Error al consultar API de traducción MyMemory. HTTP Code: " . $httpCode);
             return null;
         }
 
         $data = json_decode($response, true);
         if (json_last_error() !== JSON_ERROR_NONE) {
-            error_log("Error de JSON en la respuesta de traducción");
+            error_log("Error de JSON en la respuesta de MyMemory");
             return null;
         }
 
-        $translated = "";
-        if (isset($data[0]) && is_array($data[0])) {
-            foreach ($data[0] as $sentence) {
-                if (isset($sentence[0])) {
-                    $translated .= $sentence[0];
-                }
+        $translated = isset($data['responseData']['translatedText']) ? $data['responseData']['translatedText'] : "";
+        
+        $sourceLanguage = 'en'; 
+        if (isset($data['matches']) && is_array($data['matches']) && count($data['matches']) > 0) {
+            $firstMatch = $data['matches'][0];
+            if (isset($firstMatch['source'])) {
+                $sourceLanguage = strtolower(substr($firstMatch['source'], 0, 2));
             }
         }
-
-        $sourceLanguage = isset($data[2]) ? $data[2] : null;
 
         return [
             'translated' => $translated,
