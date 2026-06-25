@@ -118,7 +118,7 @@ try {
 // Direct curl test
 $directCurl = [];
 try {
-    $url = "https://translate.googleapis.com/translate_a/single?client=gtx&dt=t&sl=auto&tl=es&q=" . urlencode("Hello");
+    $url = "https://api.mymemory.translated.net/get?q=" . urlencode("Hello world") . "&langpair=" . urlencode("en|es");
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -131,12 +131,12 @@ try {
     
     $directCurl['http_code'] = $code;
     $directCurl['curl_error'] = $err;
-    $directCurl['response'] = $resp;
+    $directCurl['response'] = json_decode($resp, true) ?: $resp;
 } catch (Exception $ex) {
     $directCurl['error'] = $ex->getMessage();
 }
 $result['translation_test'] = $translateTest;
-$result['direct_translate_curl_test'] = $directCurl;
+$result['mymemory_translate_curl_test'] = $directCurl;
 
 echo json_encode($result, JSON_PRETTY_PRINT);
 ?>
