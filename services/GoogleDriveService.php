@@ -11,23 +11,29 @@ class GoogleDriveService {
 
     public function __construct() {
         $this->client = new Google_Client();
-        $this->client->setAuthConfig(__DIR__ . '/../config/client_secret.json');
+        
+        $clientSecretPath = __DIR__ . '/../config/client_secret.json';
+        if (file_exists('/etc/secrets/client_secret.json')) {
+            $clientSecretPath = '/etc/secrets/client_secret.json';
+        }
+        $this->client->setAuthConfig($clientSecretPath);
         $this->client->addScope(Google_Service_Drive::DRIVE);
         $this->client->setAccessType('offline');
 
         $tokenPath = __DIR__ . '/../config/token.json';
+        if (file_exists('/etc/secrets/token.json')) {
+            $tokenPath = '/etc/secrets/token.json';
+        }
         
         if (file_exists($tokenPath)) {
             $accessToken = json_decode(file_get_contents($tokenPath), true);
             $this->client->setAccessToken($accessToken);
         }
 
-        
         if ($this->client->isAccessTokenExpired()) {
             if ($this->client->getRefreshToken()) {
                 $this->client->fetchAccessTokenWithRefreshToken($this->client->getRefreshToken());
-                
-                file_put_contents($tokenPath, json_encode($this->client->getAccessToken()));
+                @file_put_contents($tokenPath, json_encode($this->client->getAccessToken()));
             } else {
                 throw new Exception("Falta autorizar la aplicación. Ejecuta get_token.php primero.");
             }
