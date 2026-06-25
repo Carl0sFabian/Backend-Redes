@@ -88,6 +88,13 @@ try {
     
     $pdo = new PDO($dsn, $user, $pass, $options);
     $result['db_connection_test']['success'] = true;
+    
+    $tables = [];
+    $stmt = $pdo->query("SHOW TABLES");
+    while ($row = $stmt->fetch(PDO::FETCH_NUM)) {
+        $tables[] = $row[0];
+    }
+    $result['db_connection_test']['tables'] = $tables;
     $result['db_connection_test']['message'] = 'Connected successfully!';
 } catch (Exception $e) {
     $result['db_connection_test']['success'] = false;
