@@ -68,7 +68,7 @@ class TranslationService {
 
     
     private function callTranslateApi($text) {
-        $url = "https://api.mymemory.translated.net/get?q=" . urlencode($text) . "&langpair=auto|es";
+        $url = "https://api.mymemory.translated.net/get?q=" . urlencode($text) . "&langpair=en|es";
 
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
