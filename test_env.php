@@ -6,7 +6,8 @@ $result = [
     'secrets_dir_exists' => is_dir('/etc/secrets'),
     'secrets_dir_files' => [],
     'env_file_status' => [],
-    'database_keys_status' => []
+    'database_keys_status' => [],
+    'db_connection_test' => []
 ];
 
 if ($result['secrets_dir_exists']) {
@@ -23,7 +24,10 @@ $envFiles = [
     __DIR__ . '/.env',
     '/etc/secrets/ca.pem',
     '/etc/secrets/client_secret.json',
-    '/etc/secrets/token.json'
+    '/etc/secrets/token.json',
+    __DIR__ . '/config/ca.pem',
+    __DIR__ . '/config/client_secret.json',
+    __DIR__ . '/config/token.json'
 ];
 foreach ($envFiles as $file) {
     $exists = file_exists($file);
@@ -57,6 +61,37 @@ foreach ($vars as $var) {
         '$_SERVER' => isset($_SERVER[$var]) ? 'Set (len: ' . strlen($_SERVER[$var]) . ')' : 'Not Set',
         '$_ENV' => isset($_ENV[$var]) ? 'Set (len: ' . strlen($_ENV[$var]) . ')' : 'Not Set'
     ];
+}
+
+// Test DB Connection
+try {
+    $host = getenv('DB_HOST');
+    $port = getenv('DB_PORT') ?: '3306';
+    $dbname = getenv('DB_NAME');
+    $user = getenv('DB_USER');
+    $pass = getenv('DB_PASS');
+    
+    $dsn = "mysql:host=$host;port=$port;dbname=$dbname;charset=utf8mb4";
+    $options = [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false,
+    ];
+    
+    $caPath = __DIR__ . '/config/ca.pem';
+    if (file_exists($caPath) && is_readable($caPath)) {
+        $options[PDO::MYSQL_ATTR_SSL_CA] = $caPath;
+        $result['db_connection_test']['ssl_ca_used'] = $caPath;
+    } else {
+        $result['db_connection_test']['ssl_ca_used'] = 'None (File not exists or not readable)';
+    }
+    
+    $pdo = new PDO($dsn, $user, $pass, $options);
+    $result['db_connection_test']['success'] = true;
+    $result['db_connection_test']['message'] = 'Connected successfully!';
+} catch (Exception $e) {
+    $result['db_connection_test']['success'] = false;
+    $result['db_connection_test']['message'] = $e->getMessage();
 }
 
 echo json_encode($result, JSON_PRETTY_PRINT);
