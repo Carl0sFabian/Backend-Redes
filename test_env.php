@@ -114,7 +114,29 @@ try {
     $translateTest['success'] = false;
     $translateTest['error'] = $e->getMessage();
 }
+
+// Direct curl test
+$directCurl = [];
+try {
+    $url = "https://translate.googleapis.com/translate_a/single?client=gtx&dt=t&sl=auto&tl=es&q=" . urlencode("Hello");
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0');
+    $resp = curl_exec($ch);
+    $err = curl_error($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    $directCurl['http_code'] = $code;
+    $directCurl['curl_error'] = $err;
+    $directCurl['response'] = $resp;
+} catch (Exception $ex) {
+    $directCurl['error'] = $ex->getMessage();
+}
 $result['translation_test'] = $translateTest;
+$result['direct_translate_curl_test'] = $directCurl;
 
 echo json_encode($result, JSON_PRETTY_PRINT);
 ?>
