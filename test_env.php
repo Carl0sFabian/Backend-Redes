@@ -107,9 +107,10 @@ try {
     include_once __DIR__ . '/services/TranslationService.php';
     $translationService = new TranslationService();
     $testText = "Hello world. This is a translation test.";
-    $resultTranslate = $translationService->translateToSpanish($testText);
-    $translateTest['success'] = ($resultTranslate['translated_text'] !== null);
-    $translateTest['result'] = $resultTranslate;
+    $detected = $translationService->detectLanguage($testText);
+    $translateTest['success'] = ($detected !== null);
+    $translateTest['detected_language'] = $detected;
+    $translateTest['details'] = "Language detection: " . ($detected ?: "failed");
 } catch (Exception $e) {
     $translateTest['success'] = false;
     $translateTest['error'] = $e->getMessage();

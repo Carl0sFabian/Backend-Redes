@@ -1,11 +1,14 @@
 <?php
+require_once __DIR__ . '/../vendor/autoload.php';
+
+use Smalot\PdfParser\Parser;
 
 class TranslationService {
 
     private $apiKey;
     private $apiUrl;
 
-public function __construct() {
+    public function __construct() {
         $envKey = getenv('DEEPL_API_KEY');
         
         // Si por alguna razón no la lee (dependiendo de tu configuración de PHP), busca en $_ENV o $_SERVER
@@ -19,6 +22,68 @@ public function __construct() {
 
         $this->apiKey = $envKey; 
         $this->apiUrl = "https://api-free.deepl.com/v2"; // Se mantiene igual para cuentas Free
+    }
+
+    public function extractText($filePath, $extension) {
+        $extension = strtolower($extension);
+        if ($extension === 'txt') {
+            return @file_get_contents($filePath) ?: "";
+        } elseif ($extension === 'pdf') {
+            try {
+                $parser = new Parser();
+                $pdf = $parser->parseFile($filePath);
+                return $pdf->getText();
+            } catch (Exception $e) {
+                error_log("Error al extraer texto del PDF: " . $e->getMessage());
+                return "";
+            }
+        }
+        return "";
+    }
+
+    public function detectLanguage($text) {
+        if (empty(trim($text))) {
+            return null;
+        }
+
+        // Muestra de 300 caracteres
+        $sampleText = mb_substr($text, 0, 300);
+
+        $url = $this->apiUrl . "/translate";
+        $postData = json_encode([
+            'text' => [$sampleText],
+            'target_lang' => 'ES'
+        ]);
+
+        $headers = [
+            "Authorization: DeepL-Auth-Key " . $this->apiKey,
+            "Content-Type: application/json"
+        ];
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode !== 200 || !$response) {
+            error_log("DeepL Detect Language Error. HTTP: " . $httpCode . " Resp: " . $response);
+            return null;
+        }
+
+        $data = json_decode($response, true);
+        if (isset($data['translations'][0]['detected_source_language'])) {
+            $detected = $data['translations'][0]['detected_source_language'];
+            return strtoupper(substr($detected, 0, 2));
+        }
+
+        return null;
     }
 
     /**
