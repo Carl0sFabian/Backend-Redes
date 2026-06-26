@@ -1,150 +1,160 @@
 <?php
-require_once __DIR__ . '/../vendor/autoload.php';
-
-use Smalot\PdfParser\Parser;
 
 class TranslationService {
 
-    
-    public function extractText($filePath, $extension) {
-        $extension = strtolower($extension);
-        if ($extension === 'txt') {
-            return file_get_contents($filePath);
-        } elseif ($extension === 'pdf') {
-            try {
-                $parser = new Parser();
-                $pdf = $parser->parseFile($filePath);
-                return $pdf->getText();
-            } catch (Exception $e) {
-                error_log("Error al extraer texto del PDF: " . $e->getMessage());
-                return "";
-            }
+    private $apiKey;
+    private $apiUrl;
+
+public function __construct() {
+        $envKey = getenv('DEEPL_API_KEY');
+        
+        // Si por alguna razón no la lee (dependiendo de tu configuración de PHP), busca en $_ENV o $_SERVER
+        if (!$envKey) {
+            $envKey = isset($_ENV['DEEPL_API_KEY']) ? $_ENV['DEEPL_API_KEY'] : (isset($_SERVER['DEEPL_API_KEY']) ? $_SERVER['DEEPL_API_KEY'] : null);
         }
-        return "";
+
+        if (!$envKey) {
+            error_log("CRÍTICO: No se encontró la variable de entorno DEEPL_API_KEY.");
+        }
+
+        $this->apiKey = $envKey; 
+        $this->apiUrl = "https://api-free.deepl.com/v2"; // Se mantiene igual para cuentas Free
     }
 
-    
-    public function translateToSpanish($text) {
-        if (empty(trim($text))) {
-            return ['detected_language' => null, 'translated_text' => null];
-        }
+    /**
+     * Traduce un documento completo (PDF o TXT) usando la API de DeepL
+     * @return string|null Ruta del archivo traducido en el servidor temporal
+     */
+    public function translateDocument($filePath, $originalName, $extension) {
+        try {
+            // 1. Subir el documento a DeepL
+            $uploadData = $this->uploadDocument($filePath, $originalName);
+            if (!$uploadData) return null;
 
-        
-        $sampleText = mb_substr($text, 0, 300);
-        $sampleData = $this->callTranslateApi($sampleText);
+            $documentId = $uploadData['document_id'];
+            $documentKey = $uploadData['document_key'];
 
-        if (!$sampleData) {
-            return ['detected_language' => null, 'translated_text' => null];
-        }
-
-        $detectedLanguage = $sampleData['source_language'];
-
-        
-        if ($detectedLanguage !== 'en') {
-            return ['detected_language' => $detectedLanguage, 'translated_text' => null];
-        }
-
-        
-        $chunks = $this->splitTextIntoChunks($text, 350);
-        $translatedText = "";
-
-        foreach ($chunks as $chunk) {
-            if (empty(trim($chunk))) continue;
-
-            $result = $this->callTranslateApi($chunk);
-            if ($result && !empty($result['translated'])) {
-                $translatedText .= $result['translated'] . "\n";
+            // 2. Esperar a que se procese la traducción (Polling)
+            $status = $this->waitForTranslation($documentId, $documentKey);
+            if ($status !== 'done') {
+                error_log("La traducción en DeepL falló o fue cancelada. Estado: " . $status);
+                return null;
             }
-            
-            
-            usleep(200000);
-        }
 
-        return [
-            'detected_language' => $detectedLanguage,
-            'translated_text' => trim($translatedText)
+            // 3. Descargar el archivo traducido
+            $tempFileName = pathinfo($originalName, PATHINFO_FILENAME) . '_es.' . $extension;
+            $outputPath = sys_get_temp_dir() . '/' . $tempFileName;
+
+            if ($this->downloadDocument($documentId, $documentKey, $outputPath)) {
+                return $outputPath; // Retorna la ruta del archivo listo
+            }
+
+            return null;
+        } catch (Exception $e) {
+            error_log("Excepción en TranslationService: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    private function uploadDocument($filePath, $originalName) {
+        $url = $this->apiUrl . "/document";
+        
+        // Preparar el archivo de forma segura para cURL
+        $cfile = new CURLFile($filePath, mime_content_type($filePath), $originalName);
+
+        $postData = [
+            'file' => $cfile,
+            'target_lang' => 'ES',
+            'source_lang' => 'EN' // Forzamos que traduzca de Inglés a Español
         ];
-    }
 
-    
-    private function callTranslateApi($text) {
-        $url = "https://api.mymemory.translated.net/get?q=" . urlencode($text) . "&langpair=en|es";
+        $headers = [
+            "Authorization: DeepL-Auth-Key " . $this->apiKey
+        ];
 
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
-        
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3');
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode !== 200 || !$response) {
+            error_log("DeepL Upload Error. HTTP: " . $httpCode . " Resp: " . $response);
+            return null;
+        }
+
+        return json_decode($response, true);
+    }
+
+    private function waitForTranslation($documentId, $documentKey) {
+        $url = $this->apiUrl . "/document/" . $documentId;
+        $headers = [
+            "Authorization: DeepL-Auth-Key " . $this->apiKey
+        ];
+
+        $postData = [
+            'document_key' => $documentKey
+        ];
+
+        while (true) {
+            $ch = curl_init();
+            // Pasamos parámetros por POST para proteger la document_key
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($postData));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            
+            $response = curl_exec($ch);
+            curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            $data = json_decode($response, true);
+            $status = isset($data['status']) ? $data['status'] : 'error';
+
+            // Estados posibles: queued, translating, done, error
+            if ($status === 'done' || $status === 'error') {
+                return $status;
+            }
+
+            // Esperar 2 segundos antes de volver a preguntar (evita saturar la API)
+            sleep(2);
+        }
+    }
+
+    private function downloadDocument($documentId, $documentKey, $outputPath) {
+        $url = $this->apiUrl . "/document/" . $documentId . "/result";
+        $headers = [
+            "Authorization: DeepL-Auth-Key " . $this->apiKey
+        ];
+
+        $postData = [
+            'document_key' => $documentKey
+        ];
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($postData));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
-        
+
         if ($httpCode !== 200 || !$response) {
-            error_log("Error al consultar API de traducción MyMemory. HTTP Code: " . $httpCode);
-            return null;
+            error_log("Error al descargar documento traducido de DeepL. HTTP: " . $httpCode);
+            return false;
         }
 
-        $data = json_decode($response, true);
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            error_log("Error de JSON en la respuesta de MyMemory");
-            return null;
-        }
-
-        $translated = isset($data['responseData']['translatedText']) ? $data['responseData']['translatedText'] : "";
-        
-        $sourceLanguage = 'en'; 
-        if (isset($data['matches']) && is_array($data['matches']) && count($data['matches']) > 0) {
-            $firstMatch = $data['matches'][0];
-            if (isset($firstMatch['source'])) {
-                $sourceLanguage = strtolower(substr($firstMatch['source'], 0, 2));
-            }
-        }
-
-        return [
-            'translated' => $translated,
-            'source_language' => $sourceLanguage
-        ];
-    }
-
-    
-    private function splitTextIntoChunks($text, $maxLength) {
-        
-        $text = preg_replace("/\r\n|\r|\n/", "\n", $text);
-        
-        
-        $wrapped = wordwrap($text, $maxLength, "\n|SPLIT_CHUNK|\n");
-        return explode("\n|SPLIT_CHUNK|\n", $wrapped);
-    }
-
-    
-    public function generateTranslatedPdf($text, $title, $outputPath) {
-        $pdf = new FPDF();
-        $pdf->AddPage();
-        
-        
-        $pdf->SetFont('Arial', 'B', 16);
-        $titleText = "Documento Traducido: " . $title;
-        
-        $pdf->Cell(0, 10, $this->encodeForPdf($titleText), 0, 1, 'C');
-        $pdf->Ln(10);
-
-        
-        $pdf->SetFont('Arial', '', 11);
-        $pdf->MultiCell(0, 7, $this->encodeForPdf($text));
-        
-        
-        $pdf->Output('F', $outputPath);
-    }
-
-    
-    private function encodeForPdf($text) {
-        if (function_exists('iconv')) {
-            return iconv('UTF-8', 'windows-1252//TRANSLIT', $text);
-        } elseif (function_exists('mb_convert_encoding')) {
-            return mb_convert_encoding($text, 'Windows-1252', 'UTF-8');
-        }
-        return utf8_decode($text); 
+        // Guardar el binario recibido (sea PDF o TXT) en la ruta de salida
+        return file_put_contents($outputPath, $response) !== false;
     }
 }
