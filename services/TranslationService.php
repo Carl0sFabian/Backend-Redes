@@ -30,7 +30,7 @@ class TranslationService {
         }
 
         
-        $sampleText = mb_substr($text, 0, 800);
+        $sampleText = mb_substr($text, 0, 300);
         $sampleData = $this->callTranslateApi($sampleText);
 
         if (!$sampleData) {
@@ -45,7 +45,7 @@ class TranslationService {
         }
 
         
-        $chunks = $this->splitTextIntoChunks($text, 1500);
+        $chunks = $this->splitTextIntoChunks($text, 350);
         $translatedText = "";
 
         foreach ($chunks as $chunk) {
@@ -57,7 +57,7 @@ class TranslationService {
             }
             
             
-            usleep(100000);
+            usleep(200000);
         }
 
         return [
