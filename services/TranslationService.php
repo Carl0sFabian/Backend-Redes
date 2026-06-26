@@ -21,7 +21,12 @@ class TranslationService {
         }
 
         $this->apiKey = $envKey; 
-        $this->apiUrl = "https://api-free.deepl.com/v2"; // Se mantiene igual para cuentas Free
+        // Determinar endpoint de DeepL (Free vs Pro) dinámicamente según la key
+        if (substr($this->apiKey, -3) === ':fx') {
+            $this->apiUrl = "https://api-free.deepl.com/v2";
+        } else {
+            $this->apiUrl = "https://api.deepl.com/v2";
+        }
     }
 
     public function extractText($filePath, $extension) {

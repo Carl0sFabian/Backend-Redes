@@ -120,30 +120,39 @@ try {
 $directCurl = [];
 try {
     $apiKey = getenv('DEEPL_API_KEY') ?: (isset($_ENV['DEEPL_API_KEY']) ? $_ENV['DEEPL_API_KEY'] : (isset($_SERVER['DEEPL_API_KEY']) ? $_SERVER['DEEPL_API_KEY'] : null));
-    $url = "https://api-free.deepl.com/v2/translate";
-    $postData = json_encode([
-        'text' => ["Hello world"],
-        'target_lang' => 'ES'
-    ]);
-    $headers = [
-        "Authorization: DeepL-Auth-Key " . $apiKey,
-        "Content-Type: application/json"
-    ];
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-    $resp = curl_exec($ch);
-    $err = curl_error($ch);
-    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
     
-    $directCurl['http_code'] = $code;
-    $directCurl['curl_error'] = $err;
-    $directCurl['response'] = json_decode($resp, true) ?: $resp;
+    $endpoints = [
+        'free' => "https://api-free.deepl.com/v2/translate",
+        'pro' => "https://api.deepl.com/v2/translate"
+    ];
+    
+    foreach ($endpoints as $type => $url) {
+        $postData = json_encode([
+            'text' => ["Hello world"],
+            'target_lang' => 'ES'
+        ]);
+        $headers = [
+            "Authorization: DeepL-Auth-Key " . $apiKey,
+            "Content-Type: application/json"
+        ];
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+        $resp = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        
+        $directCurl[$type] = [
+            'http_code' => $code,
+            'response' => json_decode($resp, true) ?: $resp
+        ];
+    }
+    
+    $directCurl['is_free_key_suffix'] = (substr($apiKey, -3) === ':fx');
 } catch (Exception $ex) {
     $directCurl['error'] = $ex->getMessage();
 }
