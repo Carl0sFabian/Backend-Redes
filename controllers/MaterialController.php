@@ -92,30 +92,36 @@ public function createMaterial($datosTexto, $datosArchivo) {
                     include_once __DIR__ . '/../services/TranslationService.php';
                     $translationService = new TranslationService();
 
-                    // Llamamos a la traducción directa del documento completo
-                    $tempTraducido = $translationService->translateDocument($rutaTemporal, $nombreOriginal, $extension);
+                    // 1. Extraer texto para detectar el idioma origen
+                    $textoExtraido = $translationService->extractText($rutaTemporal, $extension);
+                    $detectedLang = $translationService->detectLanguage($textoExtraido);
 
-                    if ($tempTraducido && file_exists($tempTraducido)) {
-                        $tempFileName = basename($tempTraducido);
-                        
-                        // Determinar MimeType correcto de la traducción
-                        $mimeTraducido = ($extension === 'pdf') ? 'application/pdf' : 'text/plain';
+                    // 2. Traducir el documento con DeepL solo si el idioma origen es Inglés (EN)
+                    if ($detectedLang === 'EN') {
+                        $tempTraducido = $translationService->translateDocument($rutaTemporal, $nombreOriginal, $extension);
 
-                        // Subir el archivo ya traducido por DeepL a Google Drive
-                        $resultadoDrive = $driveService->uploadFile($tempTraducido, $tempFileName, $mimeTraducido);
-                        
-                        // Limpiar el archivo temporal de la Mac/Servidor
-                        @unlink($tempTraducido);
+                        if ($tempTraducido && file_exists($tempTraducido)) {
+                            $tempFileName = basename($tempTraducido);
+                            
+                            // Determinar MimeType correcto de la traducción
+                            $mimeTraducido = ($extension === 'pdf') ? 'application/pdf' : 'text/plain';
 
-                        if ($resultadoDrive && isset($resultadoDrive['id_drive'])) {
-                            $this->materialModel->id_curso = $datosTexto['id_curso'];
-                            $this->materialModel->titulo = $datosTexto['titulo'] . " (Traducido)";
-                            $this->materialModel->tipo = $datosTexto['tipo'];
-                            $this->materialModel->url_archivo = $resultadoDrive['url_ver'];
-                            $this->materialModel->fecha_publicacion = date('Y-m-d');
+                            // Subir el archivo ya traducido por DeepL a Google Drive
+                            $resultadoDrive = $driveService->uploadFile($tempTraducido, $tempFileName, $mimeTraducido);
+                            
+                            // Limpiar el archivo temporal del servidor
+                            @unlink($tempTraducido);
 
-                            if ($this->materialModel->post()) {
-                                $fileProcessed = true;
+                            if ($resultadoDrive && isset($resultadoDrive['id_drive'])) {
+                                $this->materialModel->id_curso = $datosTexto['id_curso'];
+                                $this->materialModel->titulo = $datosTexto['titulo']; // Mantenemos el título original para la traducción española
+                                $this->materialModel->tipo = $datosTexto['tipo'];
+                                $this->materialModel->url_archivo = $resultadoDrive['url_ver'];
+                                $this->materialModel->fecha_publicacion = date('Y-m-d');
+
+                                if ($this->materialModel->post()) {
+                                    $fileProcessed = true;
+                                }
                             }
                         }
                     }
