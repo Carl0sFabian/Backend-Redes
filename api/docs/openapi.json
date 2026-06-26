@@ -7,16 +7,8 @@
   },
   "servers": [
     {
-      "url": "http://localhost:8012",
-      "description": "Servidor de desarrollo local PHP (Puerto 8012)"
-    },
-    {
-      "url": "http://localhost/edubridge-backend",
-      "description": "Servidor local XAMPP/Apache (Puerto 80)"
-    },
-    {
-      "url": "http://localhost:8012/edubridge-backend",
-      "description": "Servidor local PHP desde carpeta padre"
+      "url": "https://backend-redes-kbr6.onrender.com",
+      "description": "Servidor de producción en Render"
     }
   ],
   "tags": [
