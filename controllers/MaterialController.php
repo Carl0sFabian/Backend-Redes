@@ -55,7 +55,6 @@ class MaterialController {
     }
 
     public function createMaterial($datosTexto, $datosArchivo) {
-        
         if(
             !empty($datosTexto['id_curso']) &&
             !empty($datosTexto['titulo']) &&
@@ -66,83 +65,85 @@ class MaterialController {
             try {
                 $driveService = new GoogleDriveService();
 
-                
                 $rutaTemporal = $datosArchivo['archivo']['tmp_name'];
                 $nombreOriginal = $datosArchivo['archivo']['name'];
                 $mimeType = $datosArchivo['archivo']['type'];
+                $extension = strtolower(pathinfo($nombreOriginal, PATHINFO_EXTENSION));
 
-                
-                $resultadoDrive = $driveService->uploadFile($rutaTemporal, $nombreOriginal, $mimeType);
+                $fileProcessed = false;
 
-                
-                if ($resultadoDrive && isset($resultadoDrive['id_drive'])) {
-                    $this->materialModel->id_curso = $datosTexto['id_curso'];
-                    $this->materialModel->titulo = $datosTexto['titulo'];
-                    $this->materialModel->tipo = $datosTexto['tipo']; 
-                    
-                    
-                    $this->materialModel->url_archivo = $resultadoDrive['url_ver'];
-                    $this->materialModel->fecha_publicacion = date('Y-m-d');
+                // Intentar traducción automática si es TXT o PDF
+                if ($extension === 'txt' || $extension === 'pdf') {
+                    try {
+                        include_once __DIR__ . '/../services/TranslationService.php';
+                        $translationService = new TranslationService();
 
-                    
-                    if($this->materialModel->post()) {
-                        
-                        $extension = strtolower(pathinfo($nombreOriginal, PATHINFO_EXTENSION));
-                        if ($extension === 'txt' || $extension === 'pdf') {
-                            try {
-                                include_once __DIR__ . '/../services/TranslationService.php';
-                                $translationService = new TranslationService();
+                        $textoExtraido = $translationService->extractText($rutaTemporal, $extension);
+                        if (!empty(trim($textoExtraido))) {
+                            $translatedResult = $translationService->translateToSpanish($textoExtraido);
 
-                                $textoExtraido = $translationService->extractText($rutaTemporal, $extension);
-                                if (!empty(trim($textoExtraido))) {
-                                    $translatedResult = $translationService->translateToSpanish($textoExtraido);
+                            // Detectado como inglés y se obtuvo texto traducido
+                            if ($translatedResult && $translatedResult['detected_language'] === 'en' && !empty($translatedResult['translated_text'])) {
+                                $tempFileName = pathinfo($nombreOriginal, PATHINFO_FILENAME) . '_es.' . $extension;
+                                $tempTraducido = sys_get_temp_dir() . '/' . $tempFileName;
 
-                                    if ($translatedResult && $translatedResult['detected_language'] === 'en' && !empty($translatedResult['translated_text'])) {
-                                        
-                                        $tempFileName = pathinfo($nombreOriginal, PATHINFO_FILENAME) . '_es.' . $extension;
-                                        $tempTraducido = sys_get_temp_dir() . '/' . $tempFileName;
+                                if ($extension === 'pdf') {
+                                    $translationService->generateTranslatedPdf($translatedResult['translated_text'], $datosTexto['titulo'], $tempTraducido);
+                                    $mimeTraducido = 'application/pdf';
+                                } else {
+                                    file_put_contents($tempTraducido, $translatedResult['translated_text']);
+                                    $mimeTraducido = 'text/plain';
+                                }
 
-                                        if ($extension === 'pdf') {
-                                            $translationService->generateTranslatedPdf($translatedResult['translated_text'], $datosTexto['titulo'], $tempTraducido);
-                                            $mimeTraducido = 'application/pdf';
-                                        } else {
-                                            file_put_contents($tempTraducido, $translatedResult['translated_text']);
-                                            $mimeTraducido = 'text/plain';
-                                        }
+                                // Subir la traducción a Google Drive
+                                $resultadoDrive = $driveService->uploadFile($tempTraducido, $tempFileName, $mimeTraducido);
+                                @unlink($tempTraducido);
 
-                                        
-                                        $resultadoDriveTraducido = $driveService->uploadFile($tempTraducido, $tempFileName, $mimeTraducido);
-                                        @unlink($tempTraducido);
+                                if ($resultadoDrive && isset($resultadoDrive['id_drive'])) {
+                                    // Guardar solo la traducción en la BD
+                                    $this->materialModel->id_curso = $datosTexto['id_curso'];
+                                    $this->materialModel->titulo = $datosTexto['titulo'];
+                                    $this->materialModel->tipo = $datosTexto['tipo'];
+                                    $this->materialModel->url_archivo = $resultadoDrive['url_ver'];
+                                    $this->materialModel->fecha_publicacion = date('Y-m-d');
 
-                                        if ($resultadoDriveTraducido && isset($resultadoDriveTraducido['id_drive'])) {
-                                            
-                                            $this->materialModel->id_curso = $datosTexto['id_curso'];
-                                            $this->materialModel->titulo = $datosTexto['titulo'] . " (Traducido al Español)";
-                                            $this->materialModel->tipo = $datosTexto['tipo'];
-                                            $this->materialModel->url_archivo = $resultadoDriveTraducido['url_ver'];
-                                            $this->materialModel->fecha_publicacion = date('Y-m-d');
-                                            $this->materialModel->post();
-                                        }
+                                    if ($this->materialModel->post()) {
+                                        $fileProcessed = true;
                                     }
                                 }
-                            } catch (Exception $ex) {
-                                
-                                error_log("Fallo controlado en la traducción automática: " . $ex->getMessage());
                             }
                         }
-
-                        http_response_code(201); 
-                        return json_encode(array(
-                            "message" => "Material creado y subido a Google Drive exitosamente.",
-                            "records" => $this->materialModel
-                        ));
-                    } else {
-                        http_response_code(503);
-                        return json_encode(array("message" => "El archivo subió a Drive, pero no se pudo registrar en la base de datos."));
+                    } catch (Exception $ex) {
+                        error_log("Fallo controlado en la traducción automática: " . $ex->getMessage());
                     }
+                }
+
+                // Fallback a carga normal si no fue traducido (era español, falló traducción o no es txt/pdf)
+                if (!$fileProcessed) {
+                    $resultadoDrive = $driveService->uploadFile($rutaTemporal, $nombreOriginal, $mimeType);
+
+                    if ($resultadoDrive && isset($resultadoDrive['id_drive'])) {
+                        $this->materialModel->id_curso = $datosTexto['id_curso'];
+                        $this->materialModel->titulo = $datosTexto['titulo'];
+                        $this->materialModel->tipo = $datosTexto['tipo'];
+                        $this->materialModel->url_archivo = $resultadoDrive['url_ver'];
+                        $this->materialModel->fecha_publicacion = date('Y-m-d');
+
+                        if ($this->materialModel->post()) {
+                            $fileProcessed = true;
+                        }
+                    }
+                }
+
+                if ($fileProcessed) {
+                    http_response_code(201);
+                    return json_encode(array(
+                        "message" => "Material creado y subido a Google Drive exitosamente.",
+                        "records" => $this->materialModel
+                    ));
                 } else {
                     http_response_code(500);
-                    return json_encode(array("message" => "Error interno al procesar el archivo en Google Drive."));
+                    return json_encode(array("message" => "Error al procesar el archivo en la base de datos o en Google Drive."));
                 }
 
             } catch (Exception $e) {
@@ -150,7 +151,7 @@ class MaterialController {
                 return json_encode(array("message" => "Excepción detectada: " . $e->getMessage()));
             }
         } else {
-            http_response_code(400); 
+            http_response_code(400);
             return json_encode(array("message" => "Datos incompletos. Se requiere id_curso, titulo, tipo y el archivo adjunto."));
         }
     }
