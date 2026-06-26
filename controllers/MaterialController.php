@@ -41,6 +41,28 @@ class MaterialController {
         if(!empty($datos->id)) {
             $this->materialModel->id = $datos->id;
 
+            // 1. Obtener la información del material antes de eliminarlo para sacar la URL de Drive
+            $stmt = $this->materialModel->getById();
+            $num = $stmt->rowCount();
+            if ($num > 0) {
+                $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                $urlArchivo = $row['url_archivo'];
+
+                // 2. Extraer ID del archivo de Google Drive
+                $fileId = GoogleDriveService::extractFileId($urlArchivo);
+
+                // 3. Eliminar de Google Drive
+                if ($fileId) {
+                    try {
+                        $driveService = new GoogleDriveService();
+                        $driveService->deleteFile($fileId);
+                    } catch (Exception $ex) {
+                        error_log("No se pudo borrar de Drive: " . $ex->getMessage());
+                    }
+                }
+            }
+
+            // 4. Eliminar de la base de datos
             if($this->materialModel->delete()) {
                 http_response_code(200);
                 return json_encode(array("message" => "Material eliminado exitosamente."));

@@ -101,5 +101,41 @@ class GoogleDriveService {
             return null;
         }
     }
+
+    public function deleteFile($fileId) {
+        try {
+            $this->service->files->delete($fileId);
+            return true;
+        } catch (Exception $e) {
+            error_log("Error al eliminar archivo de Google Drive (ID: $fileId): " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public static function extractFileId($url) {
+        // Matches pattern file/d/FILE_ID/
+        if (preg_match('/file\/d\/([a-zA-Z0-9-_]+)/', $url, $matches)) {
+            return $matches[1];
+        }
+        // Matches pattern id=FILE_ID
+        if (preg_match('/id=([a-zA-Z0-9-_]+)/', $url, $matches)) {
+            return $matches[1];
+        }
+        return null;
+    }
+
+    public function listFiles() {
+        try {
+            $response = $this->service->files->listFiles(array(
+                'q' => "'" . $this->folderId . "' in parents and trashed = false",
+                'fields' => 'files(id, name, mimeType, webViewLink, size, createdTime)',
+                'orderBy' => 'createdTime desc'
+            ));
+            return $response->getFiles();
+        } catch (Exception $e) {
+            error_log("Error al listar archivos de Google Drive: " . $e->getMessage());
+            return [];
+        }
+    }
 }
 ?>
