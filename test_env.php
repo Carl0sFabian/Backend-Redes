@@ -153,6 +153,23 @@ try {
     }
     
     $directCurl['is_free_key_suffix'] = (substr($apiKey, -3) === ':fx');
+    $keyInfo = [
+        'length' => strlen($apiKey),
+        'starts_with_quote' => (strpos($apiKey, '"') === 0 || strpos($apiKey, "'") === 0),
+        'ends_with_quote' => (substr($apiKey, -1) === '"' || substr($apiKey, -1) === "'"),
+        'has_spaces' => (strpos($apiKey, ' ') !== false),
+        'ends_with_fx' => (substr($apiKey, -3) === ':fx'),
+        'chars_structure' => ''
+    ];
+    for ($i = 0; $i < strlen($apiKey); $i++) {
+        $c = $apiKey[$i];
+        if (ctype_alnum($c)) {
+            $keyInfo['chars_structure'] .= 'A';
+        } else {
+            $keyInfo['chars_structure'] .= $c;
+        }
+    }
+    $directCurl['key_structure_debug'] = $keyInfo;
 } catch (Exception $ex) {
     $directCurl['error'] = $ex->getMessage();
 }
