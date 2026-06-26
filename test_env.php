@@ -116,15 +116,26 @@ try {
     $translateTest['error'] = $e->getMessage();
 }
 
-// Direct curl test
+// Direct curl test (DeepL API)
 $directCurl = [];
 try {
-    $url = "https://api.mymemory.translated.net/get?q=" . urlencode("Hello world") . "&langpair=" . urlencode("en|es");
+    $apiKey = getenv('DEEPL_API_KEY') ?: (isset($_ENV['DEEPL_API_KEY']) ? $_ENV['DEEPL_API_KEY'] : (isset($_SERVER['DEEPL_API_KEY']) ? $_SERVER['DEEPL_API_KEY'] : null));
+    $url = "https://api-free.deepl.com/v2/translate";
+    $postData = json_encode([
+        'text' => ["Hello world"],
+        'target_lang' => 'ES'
+    ]);
+    $headers = [
+        "Authorization: DeepL-Auth-Key " . $apiKey,
+        "Content-Type: application/json"
+    ];
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0');
     $resp = curl_exec($ch);
     $err = curl_error($ch);
     $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -137,7 +148,7 @@ try {
     $directCurl['error'] = $ex->getMessage();
 }
 $result['translation_test'] = $translateTest;
-$result['mymemory_translate_curl_test'] = $directCurl;
+$result['deepl_translate_curl_test'] = $directCurl;
 
 echo json_encode($result, JSON_PRETTY_PRINT);
 ?>
