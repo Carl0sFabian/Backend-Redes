@@ -55,15 +55,38 @@ class MaterialController {
     }
 
     public function createMaterial($datosTexto, $datosArchivo) {
-        if(
-            !empty($datosTexto['id_curso']) &&
-            !empty($datosTexto['titulo']) &&
-            !empty($datosTexto['tipo']) &&
-            isset($datosArchivo['archivo']) && 
-            $datosArchivo['archivo']['error'] === UPLOAD_ERR_OK
-        ) {
-            try {
-                $driveService = new GoogleDriveService();
+        $missing = [];
+        if (empty($datosTexto['id_curso'])) $missing[] = 'id_curso';
+        if (empty($datosTexto['titulo'])) $missing[] = 'titulo';
+        if (empty($datosTexto['tipo'])) $missing[] = 'tipo';
+
+        if (!isset($datosArchivo['archivo'])) {
+            $missing[] = 'archivo';
+        } else {
+            $uploadError = $datosArchivo['archivo']['error'];
+            if ($uploadError !== UPLOAD_ERR_OK) {
+                $errorMsg = "Error de subida de archivo (Código $uploadError).";
+                if ($uploadError === UPLOAD_ERR_INI_SIZE) {
+                    $errorMsg .= " El archivo excede el límite de tamaño configurado en el servidor (upload_max_filesize).";
+                } elseif ($uploadError === UPLOAD_ERR_FORM_SIZE) {
+                    $errorMsg .= " El archivo excede el límite permitido por el formulario HTML.";
+                } elseif ($uploadError === UPLOAD_ERR_PARTIAL) {
+                    $errorMsg .= " El archivo se subió solo parcialmente.";
+                } elseif ($uploadError === UPLOAD_ERR_NO_FILE) {
+                    $errorMsg .= " No se subió ningún archivo.";
+                }
+                http_response_code(400);
+                return json_encode(array("message" => $errorMsg));
+            }
+        }
+
+        if (!empty($missing)) {
+            http_response_code(400);
+            return json_encode(array("message" => "Datos incompletos o inválidos. Faltan los campos: " . implode(', ', $missing)));
+        }
+
+        try {
+            $driveService = new GoogleDriveService();
 
                 $rutaTemporal = $datosArchivo['archivo']['tmp_name'];
                 $nombreOriginal = $datosArchivo['archivo']['name'];
@@ -150,10 +173,6 @@ class MaterialController {
                 http_response_code(500);
                 return json_encode(array("message" => "Excepción detectada: " . $e->getMessage()));
             }
-        } else {
-            http_response_code(400);
-            return json_encode(array("message" => "Datos incompletos. Se requiere id_curso, titulo, tipo y el archivo adjunto."));
-        }
     }
 }
 ?>
