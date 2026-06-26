@@ -54,7 +54,7 @@ foreach ($envFiles as $file) {
     $result['env_file_status'][] = $status;
 }
 
-$vars = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASS'];
+$vars = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASS', 'DEEPL_API_KEY'];
 foreach ($vars as $var) {
     $result['database_keys_status'][$var] = [
         'getenv' => getenv($var) !== false ? 'Set (len: ' . strlen(getenv($var)) . ')' : 'Not Set',
