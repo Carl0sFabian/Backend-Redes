@@ -32,8 +32,15 @@ class GoogleDriveService {
 
         if ($this->client->isAccessTokenExpired()) {
             if ($this->client->getRefreshToken()) {
-                $this->client->fetchAccessTokenWithRefreshToken($this->client->getRefreshToken());
-                @file_put_contents($tokenPath, json_encode($this->client->getAccessToken()));
+                try {
+                    $newToken = $this->client->fetchAccessTokenWithRefreshToken($this->client->getRefreshToken());
+                    if (isset($newToken['error'])) {
+                        throw new Exception("Error al refrescar token: " . ($newToken['error_description'] ?? $newToken['error']));
+                    }
+                    @file_put_contents($tokenPath, json_encode($this->client->getAccessToken()));
+                } catch (Exception $e) {
+                    throw new Exception("El token de Google Drive ha expirado o ha sido revocado. Por favor, re-autoriza la aplicación ejecutando get_token.php. Detalles: " . $e->getMessage());
+                }
             } else {
                 throw new Exception("Falta autorizar la aplicación. Ejecuta get_token.php primero.");
             }
