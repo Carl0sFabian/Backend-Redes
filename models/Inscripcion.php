@@ -14,7 +14,7 @@ class Inscripcion {
     }
 
     public function get() {
-        $query = "SELECT i.id, i.id_estudiante, i.id_curso, i.fecha_inicio, i.fecha_fin, u.nombre_completo as estudiante_nombre, c.nombre as curso_nombre
+        $query = "SELECT i.id, i.id_estudiante, i.id_curso, i.fecha_inicio, i.fecha_fin, u.nombre_completo as estudiante_nombre, u.codigo as estudiante_codigo, c.nombre as curso_nombre
                   FROM " . $this->table_name . " i
                   LEFT JOIN usuarios u ON i.id_estudiante = u.id
                   LEFT JOIN cursos c ON i.id_curso = c.id";
