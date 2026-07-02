@@ -82,7 +82,7 @@
                   "codigo": { "type": "string", "example": "E9482710" },
                   "nombre_completo": { "type": "string", "example": "Juan Pérez Silva" },
                   "correo": { "type": "string", "format": "email", "example": "juan.perez@example.com" },
-                  "tipo": { "type": "string", "enum": ["Estudiante", "Docente", "Administrador"], "example": "Estudiante" },
+                  "tipo": { "type": "string", "enum": ["Estudiante", "Docente", "Admin"], "example": "Estudiante" },
                   "password": { "type": "string", "format": "password", "example": "secreto123" }
                 }
               }
@@ -113,7 +113,7 @@
                   "codigo": { "type": "string", "example": "E9482710" },
                   "nombre_completo": { "type": "string", "example": "Juan Pérez Modificado" },
                   "correo": { "type": "string", "format": "email", "example": "juan.mod@example.com" },
-                  "tipo": { "type": "string", "enum": ["Estudiante", "Docente", "Administrador"] }
+                  "tipo": { "type": "string", "enum": ["Estudiante", "Docente", "Admin"] }
                 }
               }
             }
@@ -148,6 +148,48 @@
           "200": { "description": "Usuario eliminado exitosamente." },
           "400": { "description": "Falta proporcionar el ID." },
           "503": { "description": "Error al eliminar." }
+        }
+      }
+    },
+    "/api/usuarios/login.php": {
+      "post": {
+        "tags": ["Usuarios"],
+        "summary": "Iniciar sesión de usuario",
+        "description": "Verifica las credenciales del usuario (correo o código y contraseña). Retorna los datos del usuario si el login es exitoso.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["username", "password"],
+                "properties": {
+                  "username": { "type": "string", "example": "carlos@example.com" },
+                  "password": { "type": "string", "format": "password", "example": "123456" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Inicio de sesión exitoso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Inicio de sesión exitoso." },
+                    "user": { "$ref": "#/components/schemas/Usuario" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Contraseña incorrecta." },
+          "404": { "description": "Usuario no registrado." },
+          "400": { "description": "Datos incompletos." }
         }
       }
     },
