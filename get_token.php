@@ -6,7 +6,7 @@ $client = new Google_Client();
 $client->setAuthConfig(__DIR__ . '/config/client_secret.json');
 
 
-$client->setRedirectUri('http://localhost:8012/edubridge-backend/get_token.php');
+$client->setRedirectUri('https://backend-redes-kbr6.onrender.com/get_token.php');
 
 $client->addScope(Google_Service_Drive::DRIVE);
 $client->setAccessType('offline'); 
